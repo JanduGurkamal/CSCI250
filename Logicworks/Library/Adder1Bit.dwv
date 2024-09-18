@@ -1,0 +1,31 @@
+library IEEE;
+use IEEE.std_logic_1164.all;
+
+
+entity Adder1Bit is 
+
+ port(
+		Z	: in	std_logic;
+		Y	: in	std_logic;
+		X	: in	std_logic;
+		C	: out	std_logic;
+		S	: out	std_logic
+	);
+
+end Adder1Bit;
+
+
+architecture arch1 of Adder1Bit is
+  
+  signal s1, c1, c2: std_logic;
+  
+begin
+
+	s1 <= (x xor y);
+	s <= s1 xor z;
+	c1 <= x and y;
+	c2 <= z and s1;
+	c <= c1 xor c2;
+  
+
+end arch1;
