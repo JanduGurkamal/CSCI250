@@ -16,14 +16,14 @@ entity Adder16Bit is
 end Adder16Bit;
 
 architecture arch1 of Adder16Bit is
-
-signal s1: std_logic_vector(16 downto 0);
+	signal sum2: std_logic_vector(16 downto 0);
 
 begin
 
   S <= X + Y + Z;
-  s1 <= X + Y + Z
- 
+  sum2 <= ('0' & X) + ('0' & Y) + Z;
+  C <= sum2(15);
+	
 
 end arch1;
 
