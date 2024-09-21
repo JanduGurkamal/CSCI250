@@ -20,9 +20,9 @@ architecture arch1 of Adder16Bit is
 
 begin
 
-  S <= X + Y + Z;
+  S <= sum2(15 downto 0);
   sum2 <= ('0' & X) + ('0' & Y) + Z;
-  C <= sum2(15);
+  C <= sum2(16);
 	
 
 end arch1;
