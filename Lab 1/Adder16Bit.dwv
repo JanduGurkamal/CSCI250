@@ -1,0 +1,30 @@
+library IEEE;
+use IEEE.std_logic_1164.all;
+use IEEE.std_logic_arith.all;
+
+
+entity Adder16Bit is 
+
+ port(
+		Z	: in	std_logic;
+		Y	: in	std_logic_vector(15 downto 0);
+		X	: in	std_logic_vector(15 downto 0);
+		C	: out	std_logic;
+		S	: out	std_logic_vector(15 downto 0)
+	);
+
+end Adder16Bit;
+
+architecture arch1 of Adder16Bit is
+	signal sum2: std_logic_vector(16 downto 0);
+
+begin
+
+  S <= sum2(15 downto 0);
+  sum2 <= ('0' & X) + ('0' & Y) + Z;
+  C <= sum2(16);
+	
+
+end arch1;
+
+
