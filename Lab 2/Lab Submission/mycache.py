@@ -31,23 +31,23 @@ class MyCache:
                 hit_count += 1
             elif address in self.l2:
                 total_time += self.l2_late
-                self.__replace_cache_block(self.l1, address)
+                self.replace(self.l1, address)
             elif address in self.l3:
                 total_time += self.l3_late
-                self.__replace_cache_block(self.l2, address)
-                self.__replace_cache_block(self.l1, address)
+                self.replace(self.l2, address)
+                self.replace(self.l1, address)
             else:
                 total_time += self.l1_late + self.l2_late + self.l3_late + self.m_late
-                self.__replace_cache_block(self.l3, address)
-                self.__replace_cache_block(self.l2, address)
-                self.__replace_cache_block(self.l1, address)
+                self.replace(self.l3, address)
+                self.replace(self.l2, address)
+                self.replace(self.l1, address)
 
         hit_rate = hit_count / len(adds)
 
         # -----do not change the output-----
         return total_time, hit_rate
 
-    def __replace_cache_block(self, cache, address):
+    def replace(self, cache, address):
         if address not in cache:
             cache.pop(0)
             cache.append(address)
