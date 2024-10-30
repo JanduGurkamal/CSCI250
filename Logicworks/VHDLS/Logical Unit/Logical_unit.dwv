@@ -1,0 +1,21 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+
+entity Logical_unit is -- assigning ports inputs and outputs
+    Port (
+        OpcodeB : in STD_LOGIC_VECTOR(3 downto 0);
+        Rn_data : in STD_LOGIC_VECTOR(15 downto 0);
+        Rm_data : in STD_LOGIC_VECTOR(15 downto 0);
+        Rd_data : out STD_LOGIC_VECTOR(15 downto 0)
+    );
+end Logical_unit;
+
+architecture Behavioral of Logical_unit is
+begin
+    Rd_data <= 
+        (Rn_data and Rm_data) when OpcodeB = "0000" else -- performing AND operation when OpcodeB is 0000
+        (Rn_data xor Rm_data) when OpcodeB = "0001" else -- performing XOR operation when OpcodeB is 0001
+        (Rn_data or Rm_data) when OpcodeB = "1100" else -- performing OR operation when OpcodeB is 1100
+        (not Rn_data) when OpcodeB = "1111" else -- performing NOT operation when OpcodeB is 1111
+        (others => '0'); -- displaying 0 on don't care conditions
+end Behavioral;
