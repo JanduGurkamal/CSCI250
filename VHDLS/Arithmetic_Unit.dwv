@@ -1,0 +1,33 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity Arithmetic_unit is -- sepcifying the inputs and outputs
+    Port (
+        OpcodeB : in STD_LOGIC_VECTOR(2 downto 0); -- input
+        Mode : in STD_LOGIC_VECTOR(1 downto 0); -- input
+        Imm : in STD_LOGIC_VECTOR(7 downto 0); -- immediate
+        Rn_data : in STD_LOGIC_VECTOR(15 downto 0); -- Rn input
+        Rm_data : in STD_LOGIC_VECTOR(15 downto 0); -- Rm input
+        Rd_data : out STD_LOGIC_VECTOR(15 downto 0) -- Rd output
+    );
+end Arithmetic_unit;
+
+architecture Behavioral of Arithmetic_unit is
+    signal imm3 : STD_LOGIC_VECTOR(2 downto 0); -- creating imm3 to use in Addition and Subtraction (Immediate)
+    signal imm8 : STD_LOGIC_VECTOR(7 downto 0);
+begin
+    imm3 <= Imm(2 downto 0); -- assigning values to the signals Imm3 (extracting the bits 2 to 0) and Imm8 to make them useable
+    imm8 <= Imm;
+
+    Rd_data <= 
+        std_logic_vector(unsigned(Rn_data) + unsigned(Rm_data)) when (OpcodeB = "011" and Mode = "00") else -- performing addition when OpcodeB is 011 and Mode is 00
+        std_logic_vector(unsigned(Rn_data) - unsigned(Rm_data)) when (OpcodeB = "011" and Mode = "01") else -- performing Subtraction when OpcodeB is 011 and Mode is 01
+        std_logic_vector(unsigned(Rn_data) + unsigned(("000000000000" & imm3))) when (OpcodeB = "011" and Mode = "10") else -- performing Addition with 3 bit Immediate when OpcodeB is 011 and Mode is 10
+        std_logic_vector(unsigned(Rn_data) - unsigned(("000000000000" & imm3))) when (OpcodeB = "011" and Mode = "11") else -- performing Subtraction with 3 bit Immediate when OpcodeB is 011 and Mode is 11
+        ("00000000" & imm8) when OpcodeB = "100" else -- moving the immediate to the output when OpcodeB is 100 
+        std_logic_vector(unsigned(Rn_data) + unsigned(("00000000" & imm8))) when OpcodeB = "110" else -- performing Addition with 8 bit Immediate when OpcodeB is 110
+        std_logic_vector(unsigned(Rn_data) - unsigned(("00000000" & imm8))) when OpcodeB = "111" else -- performing Subraction with 8 bit Immediate when OpcodeB is 111
+        (others => '0'); -- Handling don't cares by just displaying 0s
+ 
+end Behavioral;
