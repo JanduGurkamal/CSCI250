@@ -20,6 +20,7 @@ with open(src_file, 'r') as f:
 
 clean_lines = []
 for line in lines:
+    # Strip comments and whitespace
     line = line.split(';', 1)[0].strip()
     if line:
         clean_lines.append(line)
@@ -45,6 +46,12 @@ def parse_reg(token):
             return num
     raise ValueError("Invalid register: " + token)
 
+def reg_name(num):
+    if num == 7:
+        return 'pc'
+    else:
+        return 'r' + str(num)
+
 def is_register(token):
     t = token.lower().strip(',')
     if t == 'pc':
@@ -63,13 +70,14 @@ def instruction_size(line):
     instr = parts[0].upper()
     if instr == '.GLOBAL':
         return 0
-    # Assume MOV, ADD, SUB, HALT, B => 2 bytes
+    # Instructions:
+    # MOV, ADD, SUB, B, MUL, NOP, HALT => 2 bytes
     # BL => 4 bytes
     if instr == 'BL':
         return 4
     return 2
 
-# First pass
+# First pass: Collect symbols and verify _main
 symbols = {}
 current_address = 0
 globals_set = set()
@@ -101,9 +109,8 @@ def encode_mov(parts, pc):
         raise ValueError("MOV syntax: MOV <dest>, <src/imm>")
     dest = parse_reg(parts[1].strip(','))
     src = parts[2]
-
-    # If dest is PC, only MOV PC, x6 allowed
     if dest == 7:
+        # MOV PC, x6 only
         if is_register(src):
             src_reg = parse_reg(src)
             if src_reg == 6:
@@ -112,7 +119,6 @@ def encode_mov(parts, pc):
                 raise ValueError("Direct PC modification not allowed except via MOV PC, x6.")
         else:
             raise ValueError("Direct PC modification not allowed except via MOV PC, x6.")
-
     if is_register(src):
         src_reg = parse_reg(src)
         return bytes([0x10, ((dest&0x7)<<3)|(src_reg&0x7)])
@@ -128,7 +134,6 @@ def encode_add(parts, pc):
     dest = parse_reg(parts[1].strip(','))
     src1 = parse_reg(parts[2].strip(','))
     op3 = parts[3]
-
     if is_register(op3):
         src2 = parse_reg(op3)
         return bytes([0x20, ((dest&0x7)<<6)|((src1&0x7)<<3)|(src2&0x7)])
@@ -184,12 +189,23 @@ def encode_bl(parts, pc):
 def encode_halt():
     return bytes([0xFF,0x00])
 
+def encode_nop():
+    return bytes([0x00,0x00])
+
+def encode_mul(parts, pc):
+    if len(parts) != 4:
+        raise ValueError("MUL syntax: MUL <dest>, <src1>, <src2>")
+    dest = parse_reg(parts[1].strip(','))
+    src1 = parse_reg(parts[2].strip(','))
+    src2 = parse_reg(parts[3].strip(','))
+    return bytes([0x40, ((dest&0x7)<<6)|((src1&0x7)<<3)|(src2&0x7)])
+
 def encode_instruction(line, pc):
     parts = line.split()
     instr = parts[0].upper()
     if instr == '.GLOBAL' or line.endswith(':'):
         return None
-    if instr == 'MOV':
+    elif instr == 'MOV':
         return encode_mov(parts, pc)
     elif instr == 'ADD':
         return encode_add(parts, pc)
@@ -201,6 +217,10 @@ def encode_instruction(line, pc):
         return encode_bl(parts, pc)
     elif instr == 'HALT':
         return encode_halt()
+    elif instr == 'NOP':
+        return encode_nop()
+    elif instr == 'MUL':
+        return encode_mul(parts, pc)
     else:
         raise ValueError("Unknown instruction: " + instr)
 
@@ -218,11 +238,72 @@ for line in clean_lines:
         binary.extend(ins)
         current_address += len(ins)
 
-# Let's say we want 256 words total (512 bytes), with 8 words per line.
+def decode_instruction(pc, binary):
+    if pc >= len(binary):
+        return None, 0
+    b0 = binary[pc]
+    b1 = binary[pc+1]
+
+    # Decode based on opcode
+    if b0 == 0x00 and b1 == 0x00:
+        return "NOP", 2
+    elif b0 == 0x10: # MOV reg, reg
+        dest = (b1 >> 3) & 0x7
+        src = b1 & 0x7
+        return f"MOV {reg_name(dest)}, {reg_name(src)}", 2
+    elif b0 == 0x11: # MOV reg, imm
+        dest = (b1 >> 5) & 0x7
+        imm = b1 & 0x1F
+        return f"MOV {reg_name(dest)}, #{imm}", 2
+    elif b0 == 0x20: # ADD reg, reg, reg
+        dest = (b1 >> 6) & 0x7
+        src1 = (b1 >> 3) & 0x7
+        src2 = b1 & 0x7
+        return f"ADD {reg_name(dest)}, {reg_name(src1)}, {reg_name(src2)}", 2
+    elif b0 == 0x21: # ADD reg, reg, imm
+        if pc+2 >= len(binary):
+            return None, 0
+        imm = binary[pc+2]
+        dest = (b1 >> 3) & 0x7
+        src1 = b1 & 0x7
+        return f"ADD {reg_name(dest)}, {reg_name(src1)}, #{imm}", 3
+    elif b0 == 0x22: # SUB reg, reg, reg
+        dest = (b1 >> 6) & 0x7
+        src1 = (b1 >> 3) & 0x7
+        src2 = b1 & 0x7
+        return f"SUB {reg_name(dest)}, {reg_name(src1)}, {reg_name(src2)}", 2
+    elif b0 == 0x23: # SUB reg, reg, imm
+        if pc+2 >= len(binary):
+            return None, 0
+        imm = binary[pc+2]
+        dest = (b1 >> 3) & 0x7
+        src1 = b1 & 0x7
+        return f"SUB {reg_name(dest)}, {reg_name(src1)}, #{imm}", 3
+    elif b0 == 0x30: # B offset
+        offset = b1
+        return f"B <offset={offset}>", 2
+    elif b0 == 0x40: # MUL reg, reg, reg
+        dest = (b1 >> 6) & 0x7
+        src1 = (b1 >> 3) & 0x7
+        src2 = b1 & 0x7
+        return f"MUL {reg_name(dest)}, {reg_name(src1)}, {reg_name(src2)}", 2
+    elif b0 == 0xFF and b1 == 0x00:
+        return "HALT", 2
+    else:
+        return f".WORD 0x{b0:02X}{b1:02X}", 2
+
+print("Decoded Instructions:")
+pc = 0
+while pc < len(binary):
+    ins, size = decode_instruction(pc, binary)
+    if ins is None or size == 0:
+        break
+    print(f"{pc:04X}: {ins}")
+    pc += size
+
 total_words = 256
 words_per_line = 8
 
-# Ensure even length of binary for 16-bit words
 if len(binary) % 2 != 0:
     binary.append(0)
 
@@ -239,7 +320,6 @@ for i in range(total_words):
         word_str = "XXXX"
     output_lines.append(word_str)
 
-# Write to a.out
 with open(out_file, 'w') as f:
     for i in range(0, total_words, words_per_line):
         row = output_lines[i:i+words_per_line]

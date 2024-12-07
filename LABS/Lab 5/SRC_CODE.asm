@@ -1,14 +1,20 @@
-        .global _main
+    .global _main
 
 _main:
-        MOV x0, #10
-        MOV x1, #20
-        ADD x2, x0, #5
-        ADD x2, x2, x1
-        BL foo
-        MOV x0, x2
-        HALT
+    mov   r0, #10
+    mov   r1, #0x14
+    mov   r6, pc
+    b     add_numbers
+    mov   r1, #0b11
+    mov   r6, pc
+    b     multiply_numbers
+    nop
+    halt
 
-foo:
-        ADD x2, x2, #5
-        MOV PC, x6    ; return to caller
+add_numbers:
+    add   r0, r0, r1
+    mov   pc, r6
+
+multiply_numbers:
+    mul   r0, r0, r1
+    mov   pc, r6
